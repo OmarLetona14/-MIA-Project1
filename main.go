@@ -21,8 +21,10 @@ func main() {
 		fmt.Print(">")
 		input, _ := reader.ReadString('\n')
 		input = get_text(input)
-		if input != "x" {
-			execute_console(input)
+		if input != "x"{
+			if !strings.HasPrefix(input, "#") { 
+				execute_console(input)
+			}
 		} else {
 			fmt.Println("Finishing the app...")
 			finish_app = true
@@ -121,6 +123,9 @@ func exec_fdisk(com []string) {
 			log.Fatal(err)
 
 		case "-path":
+			if strings.ContainsAny(spplited_command[1],"\"") {
+				strings.ReplaceAll(spplited_command[1], "\"", "")
+			}
 			new_disk.path = spplited_command[1]
 			fmt.Println("Disk path", new_disk.path)
 		case "-name":
@@ -132,7 +137,6 @@ func exec_fdisk(com []string) {
 			}
 		case "-unit":
 			new_disk.unit = spplited_command[1]
-			fmt.Println("Disk unit", new_disk.unit)
 		default:
 			if spplited_command[0] != "mkdisk" {
 				fmt.Println(spplited_command[0], "command unknow")
@@ -150,7 +154,7 @@ func exec_mrdisk(com []string) {
 	splitted_command := strings.Split(com[1], equalizer)
 	if splitted_command[0] == "-path" {
 		file_name := splitted_command[1]
-		file_name += ""
+		deleteFile(file_name)
 	} else {
 		fmt.Println(splitted_command[0], "command unknow")
 	}
@@ -179,10 +183,10 @@ func exec_mkdisk(com []string) {
 				new_disk.name = spplited_command[1]
 			} else {
 				fmt.Println("Error! Name must have .dsk extension")
+				return 
 			}
 		case "-unit":
 			new_disk.unit = spplited_command[1]
-			fmt.Println("Disk unit", new_disk.unit)
 		default:
 			if spplited_command[0] != "mkdisk" {
 				fmt.Println(spplited_command[0], "command unknow")
@@ -205,14 +209,33 @@ func readFile(file_name string) {
 	f, err := os.Open(file_name)
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		fmt.Println("Executing ", scanner.Text(), "... ")
-		execute_console(strings.TrimRight(scanner.Text(), " "))
+		if !strings.HasPrefix(scanner.Text(), "#"){
+			fmt.Println("Executing ", scanner.Text(), "... ")
+			execute_console(strings.TrimRight(scanner.Text(), " "))
+		}else{
+			fmt.Println(scanner.Text())
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
+		return
+	}
+}
+
+func deleteFile(path string){
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		err := os.Remove(path)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}	
+		fmt.Println("Removed successfully!")
+	}else{
+		fmt.Println("Error: File doesnt exists!")
 	}
 }
