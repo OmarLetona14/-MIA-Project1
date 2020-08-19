@@ -88,7 +88,6 @@ func Exec_fdisk(com []string) {
 	}else if(!new_partition.Delete && !new_partition.Add){
 		record := ReadBinaryFile(new_partition.Path)
 		e,_,_ := calcPart(record.Partitions)
-		fmt.Println("EXTENDED PARTITIONS ", e)
 		if(e==1){
 			if(new_partition.Type=='e'){
 				fmt.Println("THERE IS ONE EXTENDED PARTITION ALREADY")
@@ -186,6 +185,7 @@ func Exec_mkdisk(com []string) {
 				return
 			}
 		case "-path":
+			fmt.Println(spplited_command[1])
 			if _, err := os.Stat(spplited_command[1]); os.IsNotExist(err) {
 				os.MkdirAll(spplited_command[1], os.ModePerm)
 			}
@@ -205,9 +205,12 @@ func Exec_mkdisk(com []string) {
 			}
 		}
 	}
-	CreateBinaryFile(new_disk.name,new_disk.path, calc_filesize(new_disk.unit, new_disk.size,false))
-	filen := new_disk.path+ new_disk.name 
-	printDisk(ReadBinaryFile(filen))
+	fmt.Println(new_disk)
+	if(new_disk.path != "" && new_disk.size != 0 && new_disk.name != ""){
+		CreateBinaryFile(new_disk.name,new_disk.path, calc_filesize(new_disk.unit, new_disk.size,false))
+	}else{
+		fmt.Println("Too few arguments!")
+	}
 }
 
 
