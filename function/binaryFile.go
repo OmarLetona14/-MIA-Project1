@@ -15,7 +15,7 @@ type mbr struct{
 	Size int64
 	Time[25] byte
 	Disk_signature int8
-	Partitions[3] partition
+	Partitions[4] partition
 }
 
 type partition struct{

@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"os"
+	"reflect"
+    "unsafe"
 )
 
 var Equalizer string = "->"
@@ -18,7 +20,7 @@ type binaryFile struct {
 }
 
 type partition_config struct{
-	Size int8
+	Size int64
 	Unit byte
 	Path string
 	Type byte
@@ -37,7 +39,7 @@ func Exec_fdisk(com []string) {
 		case "-size":
 			i, _ := strconv.Atoi(spplited_command[1])
 			if i > 0 {
-				new_partition.Size = int8(i)
+				new_partition.Size = int64(i)
 				//fmt.Println("Partition size ",new_partition.Size)
 			} else {
 				fmt.Println("Partition size must be positive")
@@ -85,6 +87,14 @@ func Exec_fdisk(com []string) {
 
 	}else if(!new_partition.Delete && !new_partition.Add){
 		record := ReadBinaryFile(new_partition.Path)
+		e,_,_ := calcPart(record.Partitions)
+		fmt.Println("EXTENDED PARTITIONS ", e)
+		if(e==1){
+			if(new_partition.Type=='e'){
+				fmt.Println("THERE IS ONE EXTENDED PARTITION ALREADY")
+				return
+			}
+		}
 		createPartition(&record, new_partition)
 		if(!PartitionError){
 			WriteBFile(new_partition.Path, record, 1)
@@ -98,33 +108,58 @@ func Exec_fdisk(com []string) {
 	}
 }
 
+func BytesToString(b []byte) string {
+    bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+    sh := reflect.StringHeader{bh.Data, bh.Len}
+    return *(*string)(unsafe.Pointer(&sh))
+}
+
 func createPartition(r *mbr, p partition_config){
 	par_unit := string(p.Unit)
 	disk_size := r.Size
 	part_size := calc_filesize(par_unit,int(p.Size), true)
-	for i:=0;i<len(r.Partitions);i++ {
-		if(r.Partitions[i].Status == '0'){
-			r.Partitions[i].Status = 'i'
-			r.Partitions[i].Type = p.Type
-			r.Partitions[i].Fit = p.Fit[0]
-			if(i==0){
-				r.Partitions[i].Start = 0
-			}else{
-				ps := int64(r.Partitions[i-1].Start) + r.Partitions[i-1].Size
-				if(int64(ps)<=disk_size){
-					r.Partitions[i].Start = ps
-				}else{
-					fmt.Println("Not enough space on disk")
-					PartitionError = true
-				}
-			}
-			r.Partitions[i].Size = part_size
-			var parN[16] byte
-			copy(parN[:],p.Name)
-			r.Partitions[i].Name = parN
-			return 
-		}	
+		for i:=0;i<len(r.Partitions);i++ {
+			st := r.Partitions[i].Status
+			if(st == '0'){
+				r.Partitions[i].Status = 'i'
+					r.Partitions[i].Type = p.Type
+					r.Partitions[i].Fit = p.Fit[0]
+					if(i==0){
+						start_first := unsafe.Sizeof(r)
+						r.Partitions[i].Start = int64(start_first)
+					}else{
+						ps := int64(r.Partitions[i-1].Start) + r.Partitions[i-1].Size
+						total_size := ps + part_size
+						if(total_size<=disk_size){
+							r.Partitions[i].Start = ps
+						}else{
+							fmt.Println("Not enough space on disk")
+							PartitionError = true
+						}
+					}
+					r.Partitions[i].Size = part_size
+					var parN[16] byte
+					copy(parN[:],p.Name)
+					r.Partitions[i].Name = parN
+				return 
+			}	
+		}
+}
+
+func calcPart(parti [4] partition)(int, int, int){
+	primary := 0
+	free:=0
+	extended := 0
+	for i:=0;i<len(parti);i++ {
+		if(parti[i].Type == 'p'){
+			primary += 1
+		}else if(parti[i].Type == 'e'){
+			extended +=1
+		}else{
+			free +=1
+		}
 	}
+	return extended, primary, free
 }
 
 func Exec_mrdisk(com []string) {
