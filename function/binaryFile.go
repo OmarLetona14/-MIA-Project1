@@ -9,6 +9,7 @@ import (
 	"unsafe"
 	"math/rand"
 	"time"
+	"strings"
 )
 
 type mbr struct{
@@ -25,7 +26,6 @@ type partition struct{
 	Start int64
 	Size int64
 	Name[16] byte
-
 }
 
 func ReadBinaryFile(file_name string) mbr {
@@ -33,6 +33,7 @@ func ReadBinaryFile(file_name string) mbr {
 	defer file.Close()
 	if err != nil {
 		log.Fatal(err)
+		fmt.Println("An error occurred while creating the disc")
 	}
 	var m mbr
 	var mbr_size int = int(unsafe.Sizeof(m)) + 1 
@@ -54,9 +55,9 @@ func printDisk(m mbr){
 		par := m.Partitions[i]
 		fmt.Println("------------------------------------------------------------------")
 		fmt.Println("Partition", i)
-		fmt.Println("Partition status", par.Status)
-		fmt.Println("Partition type", par.Type)
-		fmt.Println("Partition fit", par.Fit)
+		fmt.Println("Partition status", string(par.Status))
+		fmt.Println("Partition type", string(par.Type))
+		fmt.Println("Partition fit", string(par.Fit))
 		fmt.Println("Partition start",par.Start)
 		fmt.Println("Partition size",par.Size)
 		parName := string(par.Name[:])
@@ -76,6 +77,9 @@ func ReadNextBytes(file *os.File, number int) []byte {
 }
 
 func CreateBinaryFile(file_name string, file_path string, file_size int64) {
+	if(!strings.HasSuffix(file_path,"/")){
+		file_path = file_path + "/"
+	}
 	file_route := file_path + file_name
 	file, err := os.Create(file_route)
 	defer file.Close()

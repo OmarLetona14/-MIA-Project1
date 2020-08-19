@@ -11,6 +11,7 @@ import (
 )
 
 var equalizer string = "->"
+var m_command string = ""
 
 func main() {
 	fmt.Println("Welcome to the console! (Press x to finish)")
@@ -32,7 +33,14 @@ func main() {
 }
 
 func execute_console(i string) {
-	recognize_command(splitter(get_text(i)))
+	if(!strings.HasSuffix(i,"/*")){
+		m_command += get_text(i)
+		fmt.Println(m_command)
+		recognize_command(splitter(m_command))
+		m_command = ""
+	}else{
+		m_command += strings.TrimRight(i, "/*")
+	}
 }
 
 func get_text(txt string) string {
@@ -45,15 +53,11 @@ func get_text(txt string) string {
 }
 
 func recognize_command(commands []string) {
-	if commands[len(commands)-1] == "/*"{
-
-	}
 	switch strings.ToLower(commands[0]) {
 	case "mkdisk":
 		function.Exec_mkdisk(commands)
 	case "exec":
 		sub_command := strings.Split(commands[1], equalizer)
-		fmt.Println(strings.ToLower(sub_command[1]))
 		if strings.ToLower(sub_command[0]) == "-path" {
 			readFile(sub_command[1])
 		} else {
@@ -75,6 +79,7 @@ func recognize_command(commands []string) {
 }
 
 func readFile(file_name string) {
+	m_command = ""
 	f, err := os.Open(file_name)
 	if err != nil {
 		log.Fatal(err)
@@ -83,11 +88,13 @@ func readFile(file_name string) {
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		if !strings.HasPrefix(scanner.Text(), "#"){
-			fmt.Println("Executing ", scanner.Text(), "... ")
-			execute_console(strings.TrimRight(scanner.Text(), " "))
-		}else{
-			fmt.Println(scanner.Text())
+		if(scanner.Text()!= " "){
+			if !strings.HasPrefix(scanner.Text(), "#"){
+				fmt.Println("Executing ", scanner.Text(), "... ")
+				execute_console(strings.TrimRight(scanner.Text(), " "))
+			}else{
+				fmt.Println(scanner.Text())
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {

@@ -205,9 +205,14 @@ func Exec_mkdisk(com []string) {
 			}
 		}
 	}
-	CreateBinaryFile(new_disk.name,new_disk.path, calc_filesize(new_disk.unit, new_disk.size,false))
-	filen := new_disk.path+ new_disk.name 
-	printDisk(ReadBinaryFile(filen))
+	if(new_disk.path!="" && new_disk.size != 0 && new_disk.name!=""){
+		CreateBinaryFile(new_disk.name,new_disk.path, calc_filesize(new_disk.unit, new_disk.size,false))
+		filen := new_disk.path+ new_disk.name 
+		printDisk(ReadBinaryFile(filen))
+	}else{
+		fmt.Println("Too few arguments")
+	}
+	
 }
 
 
