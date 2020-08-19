@@ -9,7 +9,6 @@ import (
 	"unsafe"
 	"math/rand"
 	"time"
-	"strings"
 )
 
 type mbr struct{
@@ -34,7 +33,6 @@ func ReadBinaryFile(file_name string) mbr {
 	defer file.Close()
 	if err != nil {
 		log.Fatal(err)
-		fmt.Println("An error occurred while creating the disc")
 	}
 	var m mbr
 	var mbr_size int = int(unsafe.Sizeof(m)) + 1 
@@ -78,9 +76,6 @@ func ReadNextBytes(file *os.File, number int) []byte {
 }
 
 func CreateBinaryFile(file_name string, file_path string, file_size int64) {
-	if(!strings.HasSuffix(file_path,"/")){
-		file_path = file_path + "/"
-	}
 	file_route := file_path + file_name
 	file, err := os.Create(file_route)
 	defer file.Close()
