@@ -35,7 +35,6 @@ func main() {
 func execute_console(i string) {
 	if(!strings.HasSuffix(i,"/*")){
 		m_command += get_text(i)
-		fmt.Println(m_command)
 		recognize_command(splitter(m_command))
 		m_command = ""
 	}else{
@@ -59,10 +58,10 @@ func recognize_command(commands []string) {
 	case "exec":
 		sub_command := strings.Split(commands[1], equalizer)
 		if strings.ToLower(sub_command[0]) == "-path" {
-			readFile(sub_command[1])
+			readFile(sub_command[1])		
 		} else {
 			fmt.Println("Not supported command! ")
-			fmt.Println("You may say -path, press -help to see the list of commands avalibles")
+			fmt.Println("Maybe you meant -path")
 		}
 	case "rmdisk":
 		function.Exec_mrdisk(commands)
@@ -73,6 +72,15 @@ func recognize_command(commands []string) {
 		reader := bufio.NewReader(os.Stdin)
 		x, _ := reader.ReadString('\n')
 		x += ""
+	case "mount":
+		fmt.Println(commands)
+		if(len(commands)>=2){
+			function.Exec_mount(commands)
+		}else{
+			fmt.Println("MOUNTED PARTITIONS")
+			fmt.Println("-----------------------------------")
+			function.PrintMount()
+		}
 	default:
 		fmt.Println("Not supported command! ")
 	}

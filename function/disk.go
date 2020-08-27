@@ -11,12 +11,26 @@ import (
 
 var Equalizer string = "->"
 var PartitionError bool = false
+var Disks[100] mounted_disk  
+var Disks_size int = 0
+var mounts[100] mount
+var Mounts_size int =0
+
+type mounted_disk struct{
+	Size int
+	Path string
+	Name string
+	Identifier string
+	Created string
+	Mounted_partitions int
+}
+
 
 type binaryFile struct {
-	size int
-	path string
-	name string
-	unit string
+	Size int
+	Path string
+	Name string
+	Unit string
 }
 
 type partition_config struct{
@@ -30,6 +44,120 @@ type partition_config struct{
 	Add bool
 }
 
+type mount struct{
+	Path string
+	Name string
+	Identifier string
+}
+
+/*MOUNT COMMAND*/
+
+func GetMountIdentifier(path string)string{
+	for i, element := range Disks{
+		absolute_path := element.Path + element.Name
+		if(absolute_path==path){
+			id := "vd" + element.Identifier + strconv.Itoa(element.Mounted_partitions)
+			element.Mounted_partitions = element.Mounted_partitions + 1
+			Disks[i] = element
+			return id
+		}
+	}
+	return ""
+}
+
+
+func mount_disk(path string, name string){
+	m := ReadBinaryFile(path + name)
+	var dsk mounted_disk 
+	dsk.Identifier = GetIdentifier(Disks_size)
+	dsk.Size = int(m.Size)
+	dsk.Path = path
+	dsk.Name = name
+	tm := string(m.Time[:])
+	dsk.Created = tm
+	Disks[Disks_size] = dsk
+	Disks_size += 1
+}
+
+func verifyMountedDisk(path string, name string)bool{
+	for _,element := range Disks{
+		if(element.Name!=""){
+			path_abs := element.Path + element.Name
+			if(compareBytes(path+name, path_abs)){
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func Exec_mount(com [] string){
+	var new_mount mount
+	for _,element := range com {
+		spplited_command := strings.Split(element, Equalizer)
+		switch  strings.ToLower(spplited_command[0]) {
+		case "-path":
+			if _, err := os.Stat(spplited_command[1]); !os.IsNotExist(err) {
+				new_mount.Path = spplited_command[1]
+			}else{
+				fmt.Println("Especificated disk doesnt exist")
+				return
+			}
+		case "-name":
+			dsik := ReadBinaryFile(new_mount.Path)
+			if(!verifyMountedDisk(getPath(new_mount.Path))){
+				mount_disk(getPath(new_mount.Path))
+			}
+			for _,element := range dsik.Partitions {
+				name_dsk := strings.TrimRight(string(element.Name[:])," ") 
+				if(compareBytes(spplited_command[1],name_dsk)){
+					new_mount.Name = spplited_command[1]
+				}
+			}
+			if(new_mount.Name == ""){
+				fmt.Println("Partition doesnt exists in disk")
+			}
+		}
+	}
+	if(new_mount.Path != "" && new_mount.Name != ""){
+		new_mount.Identifier = GetMountIdentifier(new_mount.Path)
+		fmt.Println("PARTITION ", new_mount.Identifier, "MOUNTED")
+		mounts[Mounts_size] = new_mount
+		Mounts_size += 1
+		
+	}else{
+		fmt.Println("Too few arguments")
+	}
+}
+
+func getPath(p string)(string, string){
+	sp := strings.Split(p, "/")
+	name := sp[len(sp)-1]
+	path := strings.TrimRight(p, name)
+	return path, name
+}
+
+func compareBytes(str1 string, str2 string)bool{
+	for i:=0;i< len(str1); i++{
+		if(!(i>=len(str1)) && !(i>=len(str2))){
+			if(!(str1[i]==str2[i])){
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func PrintMount(){
+	for _,element := range mounts{
+		if(element.Identifier!=""){
+			fmt.Println("IDENTIFIER:", element.Identifier)
+			fmt.Println("DISK:", element.Path)
+			fmt.Println("PARTITION", element.Name)
+			fmt.Println("----------------------------------")
+		}
+	}
+}
 
 func Exec_fdisk(com []string) {
 	var new_partition partition_config
@@ -77,34 +205,38 @@ func Exec_fdisk(com []string) {
 			}
 		}
 	}
-	if new_partition.Unit == 0 {
-		new_partition.Unit = 'k'
-		fmt.Println("You didnt specify an unit size")
-	}
-	if(new_partition.Add && !new_partition.Delete){
-		
-	}else if(new_partition.Delete && !new_partition.Add){
-
-	}else if(!new_partition.Delete && !new_partition.Add){
-		record := ReadBinaryFile(new_partition.Path)
-		e,_,_ := calcPart(record.Partitions)
-		fmt.Println("EXTENDED PARTITIONS ", e)
-		if(e==1){
-			if(new_partition.Type=='e'){
-				fmt.Println("THERE IS ONE EXTENDED PARTITION ALREADY")
+	if(new_partition.Size!=0  && new_partition.Path!="" && new_partition.Name!=""){
+		if new_partition.Unit == 0 {
+			new_partition.Unit = 'k'
+			fmt.Println("You didnt specify an unit size")
+		}
+		if(new_partition.Add && !new_partition.Delete){
+			
+		}else if(new_partition.Delete && !new_partition.Add){
+	
+		}else if(!new_partition.Delete && !new_partition.Add){
+			record := ReadBinaryFile(new_partition.Path)
+			e,_,_ := calcPart(record.Partitions)
+			if(e==1){
+				if(new_partition.Type=='e'){
+					fmt.Println("THERE IS ONE EXTENDED PARTITION ALREADY")
+					return
+				}
+			}
+			dks := GetDiskByName(new_partition.Path)
+			createPartition(&record, new_partition, dks)
+			if(!PartitionError){
+				WriteBFile(new_partition.Path, record, 1)
+				printDisk(ReadBinaryFile(new_partition.Path))
+			}else{
+				PartitionError = false
 				return
 			}
-		}
-		createPartition(&record, new_partition)
-		if(!PartitionError){
-			WriteBFile(new_partition.Path, record, 1)
-			printDisk(ReadBinaryFile(new_partition.Path))
-		}else{
-			PartitionError = false
-			return
+		}else {
+			fmt.Println("Incorrect params combination")
 		}
 	}else {
-		fmt.Println("Incorrect params combination")
+		fmt.Println("Too few arguments")
 	}
 }
 
@@ -114,7 +246,17 @@ func BytesToString(b []byte) string {
     return *(*string)(unsafe.Pointer(&sh))
 }
 
-func createPartition(r *mbr, p partition_config){
+func GetDiskByName(p string)mounted_disk{
+	var n mounted_disk
+	for _,element := range Disks{
+		if(element.Path==p){
+			n = element
+		}
+	}
+	return n
+}
+
+func createPartition(r *mbr, p partition_config, ds mounted_disk){
 	par_unit := string(p.Unit)
 	disk_size := r.Size
 	part_size := calc_filesize(par_unit,int(p.Size), true)
@@ -180,7 +322,7 @@ func Exec_mkdisk(com []string) {
 		case "-size":
 			i, _ := strconv.Atoi(spplited_command[1])
 			if i > 0 {
-				new_disk.size = i
+				new_disk.Size = i
 			} else {
 				fmt.Println("Size must be positive! ")
 				return
@@ -189,32 +331,30 @@ func Exec_mkdisk(com []string) {
 			if _, err := os.Stat(spplited_command[1]); os.IsNotExist(err) {
 				os.MkdirAll(spplited_command[1], os.ModePerm)
 			}
-			new_disk.path = spplited_command[1]
+			new_disk.Path = spplited_command[1]
 		case "-name":
 			if strings.HasSuffix(spplited_command[1], ".dsk") {
-				new_disk.name = spplited_command[1]
+				new_disk.Name = spplited_command[1]
 			} else {
 				fmt.Println("Error! Name must have .dsk extension")
 				return 
 			}
 		case "-unit":
-			new_disk.unit = spplited_command[1]
+			new_disk.Unit = spplited_command[1]
 		default:
 			if spplited_command[0] != "mkdisk" {
 				fmt.Println(spplited_command[0], "command unknow")
 			}
 		}
 	}
-	if(new_disk.path!="" && new_disk.size != 0 && new_disk.name!=""){
-		CreateBinaryFile(new_disk.name,new_disk.path, calc_filesize(new_disk.unit, new_disk.size,false))
-		filen := new_disk.path+ new_disk.name 
+	if(new_disk.Path!="" && new_disk.Size != 0 && new_disk.Name!=""){
+		CreateBinaryFile(new_disk.Name,new_disk.Path, calc_filesize(new_disk.Unit, new_disk.Size,false))
+		filen := new_disk.Path+ new_disk.Name 
 		printDisk(ReadBinaryFile(filen))
 	}else{
 		fmt.Println("Too few arguments")
-	}
-	
+	}	
 }
-
 
 func calc_filesize(unit string, size int, partition bool)int64{
 	if(unit=="" && !partition){
@@ -246,4 +386,8 @@ func deleteFile(path string){
 	}else{
 		fmt.Println("Error: File doesnt exists!")
 	}
+}
+
+func GetIdentifier(elements int) string {
+	return string(97+elements)
 }

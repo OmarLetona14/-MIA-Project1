@@ -101,10 +101,12 @@ func CreateBinaryFile(file_name string, file_path string, file_size int64) {
 	for i:=0;i<len(mbrs.Partitions);i++ {
 		mbrs.Partitions[i].Status = '0'
 	}
+	//mbr_size := unsafe.Sizeof(mbrs)
 	ss := &mbrs
 	var mbr_buf bytes.Buffer
 	binary.Write(&mbr_buf, binary.BigEndian, ss)
 	WriteNextBytes(file, mbr_buf.Bytes())
+
 	file.Seek(file_size,0)
 
 	var second_buffer bytes.Buffer
